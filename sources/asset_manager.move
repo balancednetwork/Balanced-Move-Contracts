@@ -177,17 +177,20 @@ module balanced::asset_manager{
             return 0
         };
         
-        let maxLimit = (tokenBalance  * percentage ) / POINTS;
-        let maxWithdraw = tokenBalance - maxLimit;
-        let mut timeDiff = (clock::timestamp_ms(c) - rate_limit.last_update)/1000;
-        timeDiff = if(timeDiff > period){ period } else { timeDiff };
+        let min_reserve = (tokenBalance  * percentage ) / POINTS;
+        let max_withdraw = tokenBalance - min_reserve;
+        let mut time_diff = (clock::timestamp_ms(c) - rate_limit.last_update)/1000;
+        time_diff = if(time_diff > period){ period } else { time_diff };
 
-        let addedAllowedWithdrawal = (maxWithdraw * timeDiff) / period;
-        
-        let mut limit = rate_limit.current_limit - addedAllowedWithdrawal;
-        limit = if(tokenBalance > limit){ limit } else { tokenBalance };
-        limit = if(limit > maxLimit){ limit } else { maxLimit };
-        limit
+        let allowed_withdrawal = (max_withdraw * time_diff) / period;
+                
+        let mut reserve = rate_limit.current_limit;
+
+        if(rate_limit.current_limit > allowed_withdrawal){
+            reserve = rate_limit.current_limit - allowed_withdrawal;
+        };
+        reserve = if(reserve > min_reserve){ reserve } else { min_reserve };
+        reserve
     }
 
     fun verify_withdraw<T>(balance: &Balance<T>, rate_limit: &mut RateLimit<T>, c: &Clock, amount: u64) {
