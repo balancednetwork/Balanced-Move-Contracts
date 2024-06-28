@@ -2,6 +2,7 @@ module balanced::xcall_manager{
     use std::string::{Self, String};
     use sui::coin::{Coin};
     use sui::sui::{SUI};
+    use sui::bag::{Self, Bag};
 
     use xcall::{main as xcall};
     use xcall::xcall_state::{Self, IDCap, Storage as XCallState};
@@ -12,9 +13,11 @@ module balanced::xcall_manager{
 
     const NoProposalForRemovalExists: u64 = 0;
     const ProtocolMismatch: u64 = 1;
-    const EIconAssetManagerRequired: u64 = 2;
+    const EIconGovernanceRequired: u64 = 2;
     const ENotUpgrade: u64 = 3;
     const EWrongVersion: u64 = 4;
+    const EAlreadyWhiteListed: u64 = 5;
+    const ENotWhitelisted: u64 = 6;
 
     const CURRENT_VERSION: u64 = 1;
 
@@ -32,7 +35,8 @@ module balanced::xcall_manager{
         proposed_protocol_to_remove: String,
         version: u64,
         id_cap: IDCap,
-        xcall_id: ID
+        xcall_id: ID,
+        whitelist_actions: Bag
     }
 
     public struct AdminCap has key {
@@ -51,6 +55,22 @@ module balanced::xcall_manager{
         );
     }
 
+    entry fun whitelist_action(_: &AdminCap, config: &mut Config, action: vector<u8>) {
+        enforce_version(config);
+        if(config.whitelist_actions.contains(action)){
+            abort EAlreadyWhiteListed
+        };
+        config.whitelist_actions.add(action, true);
+    }
+
+    entry fun remove_action(_: &AdminCap, config: &mut Config, action: vector<u8>) {
+        enforce_version(config);
+        if(!config.whitelist_actions.contains(action)){
+            abort ENotWhitelisted
+        };
+        bag::remove<vector<u8>, bool>(&mut config.whitelist_actions, action);
+    }
+
     entry fun configure(_: &AdminCap, storage: &XCallState, witness_carrier: WitnessCarrier, icon_governance: String, sources: vector<String>, destinations: vector<String>, version: u64, ctx: &mut TxContext ){
         let w = get_witness(witness_carrier);
         let id_cap =   xcall::register_dapp(storage, w, ctx);
@@ -64,7 +84,8 @@ module balanced::xcall_manager{
             proposed_protocol_to_remove: string::utf8(b""),
             version: version,
             id_cap: id_cap,
-            xcall_id: xcall_id
+            xcall_id: xcall_id,
+            whitelist_actions: bag::new(ctx)
         });
 
     }
@@ -110,7 +131,7 @@ module balanced::xcall_manager{
         let protocols = execute_ticket::protocols(&ticket);
 
         let method: vector<u8> = configure_protocol::get_method(&msg);
-        if (!verify_protocols_unordered(&protocols, &config.sources)) {
+        if (!verify_protocols_unordered(&config.sources, &protocols)) {
             assert!(
                 method == CONFIGURE_PROTOCOLS_NAME,
                 ProtocolMismatch
@@ -118,8 +139,11 @@ module balanced::xcall_manager{
             verify_protocol_recovery(&protocols, config);
         };
 
+        assert!(config.whitelist_actions.contains(data), ENotWhitelisted);
+        bag::remove<vector<u8>, bool>(&mut config.whitelist_actions, data);
+
         if (method == CONFIGURE_PROTOCOLS_NAME) {
-            assert!(from == network_address::from_string(config.icon_governance), EIconAssetManagerRequired);
+            assert!(from == network_address::from_string(config.icon_governance), EIconGovernanceRequired);
             let message: ConfigureProtocol = configure_protocol::decode(&msg);
             config.sources = configure_protocol::sources(&message);
             config.destinations = configure_protocol::destinations(&message);
@@ -133,7 +157,7 @@ module balanced::xcall_manager{
        config: &Config, protocols: &vector<String>
     ): bool {
         enforce_version(config);
-        verify_protocols_unordered(protocols, &config.sources)
+        verify_protocols_unordered(&config.sources, protocols)
     }
 
     fun verify_protocol_recovery(protocols: &vector<String>, config: &Config) {
@@ -154,7 +178,8 @@ module balanced::xcall_manager{
             let mut matched = true;
             let mut i = 0;
             while(i < len1){
-                if(!vector::contains(array2, vector::borrow(array1, i))){
+                let protocol = vector::borrow(array2, i);
+                if(!vector::contains(array1, protocol)){
                     matched = false;
                     break
                 };

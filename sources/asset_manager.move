@@ -28,7 +28,6 @@ module balanced::asset_manager{
     const POINTS: u64 = 10000;
 
     const EAmountLessThanMinimumAmount: u64 = 0;
-    const ENotDepositedAmount: u64 = 1;
     const ProtocolMismatch: u64 = 2;
     const UnknownMessageType: u64 = 3;
     const EExceedsWithdrawLimit: u64 = 4;
@@ -103,7 +102,7 @@ module balanced::asset_manager{
             version: version,
             id_cap: id_cap,
             xcall_manager_id: xcall_manager_id,
-            xcall_id: xcall_id 
+            xcall_id: xcall_id
         });
     }
 
@@ -147,6 +146,22 @@ module balanced::asset_manager{
         rate_limit.current_limit = (balance::value(asset_manager_balance) * percentage) / POINTS;
         
         config.assets.add(token_type, asset_manager)
+    }
+
+    entry fun configure_rate_limit<T> (
+        _: &AdminCap,
+        config: &mut Config,
+        c: &Clock,
+        period: u64,
+        percentage: u64
+    ) {
+        enforce_version(config);
+        let asset_manager = get_asset_manager_mut<T>(config);
+        let rate_limit = &mut asset_manager.rate_limit;
+        rate_limit.period = period;
+        rate_limit.percentage = percentage;
+        rate_limit.last_update = clock::timestamp_ms(c);
+        rate_limit.current_limit = (balance::value(&asset_manager.balance) * percentage) / POINTS;
     }
 
     entry fun reset_limit<T> (
@@ -208,8 +223,7 @@ module balanced::asset_manager{
         config: &mut Config, 
         xcall_manager_config: &XcallManagerConfig, 
         fee: Coin<SUI>,
-        mut token: Coin<T>, 
-        amount: u64, 
+        token: Coin<T>, 
         to: Option<String>, 
         data: Option<vector<u8>>, 
         ctx: &mut TxContext
@@ -223,12 +237,9 @@ module balanced::asset_manager{
         };
         let messageData = option::get_with_default(&data, b"");
         let self = get_asset_manager_mut<T>(config);
-        
-        assert!(amount >= 0, EAmountLessThanMinimumAmount);
-        assert!(coin::value(&token) >= amount, ENotDepositedAmount);
-        let deposit_token = token.split(amount, ctx);
-        coin::put<T>(&mut self.balance, deposit_token);
-        transfer::public_transfer(token, sender);
+        let amount = coin::value(&token);
+        assert!(amount>0, EAmountLessThanMinimumAmount);
+        coin::put<T>(&mut self.balance, token);
 
         let token_address = string::from_ascii(*type_name::borrow_string(&type_name::get<T>()));
         let depositMessage = deposit::wrap_deposit(
@@ -298,11 +309,9 @@ module balanced::asset_manager{
                 withdraw_to::amount(&message),
                 ctx
             );
-            xcall::execute_call_result(xcall,ticket,true,fee,ctx);
-        }else{
-            xcall::execute_call_result(xcall,ticket,false,fee,ctx);
         };
-        
+
+        xcall::execute_call_result(xcall,ticket,true,fee,ctx);
     }
 
     //Called by admin when execute call fails without a rollback
@@ -338,11 +347,9 @@ module balanced::asset_manager{
                 deposit_revert::amount(&message),
                 ctx
             );
-
-            xcall::execute_rollback_result(xcall,ticket,true);
-        }else{
-            xcall::execute_rollback_result(xcall,ticket,false);
         };
+
+        xcall::execute_rollback_result(xcall,ticket,true);
     }
 
     fun get_asset_manager_mut<T>(config: &mut Config): &mut AssetManager<T> {
