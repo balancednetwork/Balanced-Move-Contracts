@@ -43,10 +43,10 @@ module balanced::xcall_manager_test {
     }
 
     #[test_only]
-    fun setup_connection(mut scenario: Scenario, from_nid: String, admin:address): Scenario {
+    fun setup_connection(mut scenario: Scenario, admin:address): Scenario {
         let mut storage = scenario.take_shared<XCallState>();
         let adminCap = scenario.take_from_sender<xcall_state::AdminCap>();
-        xcall::register_connection(&mut storage, &adminCap,from_nid, string::utf8(b"centralized-1"), admin, scenario.ctx());
+        xcall::register_connection_admin(&mut storage, &adminCap, string::utf8(b"centralized-1"), admin, scenario.ctx());
         test_scenario::return_shared(storage);
         test_scenario::return_to_sender(&scenario, adminCap);
         scenario.next_tx(admin);
@@ -77,6 +77,38 @@ module balanced::xcall_manager_test {
     }
 
     #[test]
+    fun test_verify_protocols_duplicate_sources() {
+        let admin = ADMIN;
+        let mut scenario = test_scenario::begin(admin);
+        scenario = init_xcall_state(admin,scenario);
+        scenario.next_tx(admin);
+        xcall_manager::init_test(scenario.ctx());
+        scenario.next_tx(admin);
+        let adminCap = scenario.take_from_sender<AdminCap>();
+
+        let sources = vector[b"centralized-1".to_string(), b"centralized-2".to_string()];
+        let destinations = vector[string::utf8(b"icon/hx234"), string::utf8(b"icon/hx334")];
+        let carrier = scenario.take_from_sender<WitnessCarrier>();
+        let xcall_state= scenario.take_shared<XCallState>();
+        xcall_manager::configure(&adminCap, &xcall_state, carrier, string::utf8(b"icon/hx337"),  sources, destinations, 1, scenario.ctx());
+        test_scenario::return_shared<XCallState>(xcall_state);
+        scenario.return_to_sender(adminCap);
+        scenario.next_tx(admin);
+
+        // Act & Assert
+        let config = scenario.take_shared<Config>();
+        let sources = vector[b"centralized-1".to_string(), b"centralized-1".to_string()];
+        let (verified) = verify_protocols(&config, &sources);
+        assert!(verified, 0);
+
+        let sources = vector[b"centralized-1".to_string(), b"centralized-2".to_string()];
+        let (verified) = verify_protocols(&config, &sources);
+        assert!(verified, 1);
+        test_scenario::return_shared(config);
+        scenario.end();
+    }
+
+    #[test]
     fun configure_execute_call() {
         // Arrange
         let mut scenario = setup_test(ADMIN);
@@ -87,12 +119,14 @@ module balanced::xcall_manager_test {
         let message = wrap_protocols(sources, destinations);
         let data = encode(&message, b"ConfigureProtocols");
         
-        scenario = setup_connection( scenario, string::utf8(b"icon"), ADMIN);
+        scenario = setup_connection( scenario, ADMIN);
         let mut xcall_state = scenario.take_shared<XCallState>();
         let conn_cap = test_scenario::take_from_sender<ConnCap>(&scenario);
 
         let sources = vector[string::utf8(b"centralized-1")];
         let mut config = scenario.take_shared<Config>();
+        let adminCap = scenario.take_from_sender<AdminCap>();
+        xcall_manager::whitelist_action(&adminCap, &mut config, data);
         let sui_dapp = id_to_hex_string(&xcall_state::get_id_cap_id(xcall_manager::get_idcap(&config)));
         let icon_dapp = network_address::create(string::utf8(b"icon"), string::utf8(b"hx337"));
         let from_nid = string::utf8(b"icon");
@@ -105,10 +139,13 @@ module balanced::xcall_manager_test {
         let fee = coin::mint_for_testing<SUI>(fee_amount, scenario.ctx());
 
         xcall_manager::execute_call(&mut config, &mut xcall_state, fee, 1, data, scenario.ctx());
+
+        //xcall_manager::remove_action(&adminCap, &mut config, data);
+
         test_scenario::return_shared(config);
         test_scenario::return_shared(xcall_state);
+        scenario.return_to_sender(adminCap);
         scenario.return_to_sender(conn_cap);
-
         scenario.end();
     }
 
