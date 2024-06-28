@@ -1,5 +1,5 @@
 [addresses]
-  balanced_dollar = '0x179136f7a006f83af4d0b8048a8fec758a889df4801b76b47cae19620cd12902'
+  balanced_dollar = '0x74f734c3e5a62ae6d69bd5eecb03f1d62d18d0eeda58229fffa00db8e51deea7'
 
 [dependencies]
   [dependencies.Sui]
@@ -10,5 +10,5 @@
 [package]
   edition = '2024.beta'
   name = 'balanced_dollar'
-  published-at = '0x179136f7a006f83af4d0b8048a8fec758a889df4801b76b47cae19620cd12902'
+  published-at = '0x74f734c3e5a62ae6d69bd5eecb03f1d62d18d0eeda58229fffa00db8e51deea7'
   version = '0.0.1'

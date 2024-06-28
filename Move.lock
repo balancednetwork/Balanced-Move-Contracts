@@ -2,7 +2,7 @@
 
 [move]
 version = 2
-manifest_digest = "79C1CDFD9C912469B82A1670AEAA942F4D39388B864ABA831141C13BD3FC1B77"
+manifest_digest = "3DFDD7D153CE8C7590C4E1C94EB557161BCF072B7688ED66195BFAAEABC527DD"
 deps_digest = "060AD7E57DFB13104F21BE5F5C3759D03F0553FC3229247D9A7A6B45F50D03A3"
 dependencies = [
   { name = "Sui" },
@@ -32,7 +32,7 @@ dependencies = [
 
 [[move.package]]
 name = "sui_rlp"
-source = { git = "https://github.com/icon-project/xcall-multi.git", rev = "feat/sui-xcall-contracts", subdir = "contracts/sui/libs/sui_rlp" }
+source = { git = "https://github.com/icon-project/xcall-multi.git", rev = "feat/sui-xcall-testnet", subdir = "contracts/sui/libs/sui_rlp" }
 
 dependencies = [
   { name = "Sui" },
@@ -40,7 +40,7 @@ dependencies = [
 
 [[move.package]]
 name = "xcall"
-source = { git = "https://github.com/icon-project/xcall-multi.git", rev = "feat/sui-xcall-contracts", subdir = "contracts/sui/xcall" }
+source = { git = "https://github.com/icon-project/xcall-multi.git", rev = "feat/sui-xcall-testnet", subdir = "contracts/sui/xcall" }
 
 dependencies = [
   { name = "Sui" },
@@ -48,7 +48,7 @@ dependencies = [
 ]
 
 [move.toolchain-version]
-compiler-version = "1.25.1"
+compiler-version = "1.27.0"
 edition = "2024.beta"
 flavor = "sui"
 
@@ -58,4 +58,10 @@ flavor = "sui"
 chain-id = "bd665407"
 original-published-id = "0xc3b318607b37719d40d57063b264ad13222cd7427ea8699c98e7f5480f846444"
 latest-published-id = "0xc3b318607b37719d40d57063b264ad13222cd7427ea8699c98e7f5480f846444"
+published-version = "1"
+
+[env.testnet]
+chain-id = "4c78adac"
+original-published-id = "0x3b2b85d607328c0fa69c5073738ff469f8502d6de9036ddf162d11eadaf4f75d"
+latest-published-id = "0x3b2b85d607328c0fa69c5073738ff469f8502d6de9036ddf162d11eadaf4f75d"
 published-version = "1"

@@ -1,5 +1,5 @@
 [addresses]
-  balanced = '0x45c2f9f9bcdb884a7d5cd788169f3ed44696481d2d3e5c1088eb43a9d8ef2d2a'
+  balanced = '0x3b2b85d607328c0fa69c5073738ff469f8502d6de9036ddf162d11eadaf4f75d'
 
 [dependencies]
   [dependencies.Sui]
@@ -18,5 +18,5 @@
 [package]
   edition = '2024.beta'
   name = 'balanced'
-  published-at = '0xab62708673a3519bf8c00f7d6ae0d28664aa2883216ed205548dccdf4eb78ade'
+  published-at = '0x3b2b85d607328c0fa69c5073738ff469f8502d6de9036ddf162d11eadaf4f75d'
   version = '0.0.1'
